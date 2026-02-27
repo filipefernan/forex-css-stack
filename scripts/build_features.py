@@ -58,11 +58,17 @@ def _build_for_timeframe(args: argparse.Namespace, pairs: list[str], timeframe: 
     )
     css_config = CSSConfig(ignore_future=args.ignore_future, timeframe=timeframe)
     css = calculate_css_from_candles(candles_by_symbol=candles, config=css_config)
+    if css.empty:
+        print(f"[{timeframe}] WARNING: CSS is empty (insufficient history after indicator warmup). Skipping timeframe.")
+        return
     features = build_single_tf_features(
         css_frame=css,
         timeframe=timeframe,
         level_cross_value=args.level_cross_value,
     )
+    if features.empty:
+        print(f"[{timeframe}] WARNING: features are empty. Skipping timeframe.")
+        return
 
     output_css = args.output_css or args.output_root / timeframe.upper() / "currency_strength.parquet"
     output_features = args.output_features or args.output_root / timeframe.upper() / "currency_features.parquet"
