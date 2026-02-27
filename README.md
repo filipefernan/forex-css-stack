@@ -8,7 +8,7 @@ Stack Python para replicar o indicador **Currency Slope Strength (CSS)** do MT4 
 - Port do nucleo do indicador:
   - `getSlope` com `ignoreFuture=True` por padrao.
   - `calcCSS` por moeda (8 moedas).
-- Download de candles via OANDA v20 + loader local (`CSV`/`Parquet`).
+- Download de candles via Twelve Data/OANDA + loader local (`CSV`/`Parquet`).
 - Geracao de features para 1 ou N timeframes.
 - Dataset multi-timeframe no momento de decisao (8 linhas por timestamp) com targets de basket.
 - Treino com walk-forward (baseline + modelo de arvore/boosting).
@@ -28,7 +28,7 @@ docs/
 models/
 reports/
 scripts/
-  download_data.py      # OANDA downloader
+  download_data.py      # downloader (Twelve Data/OANDA)
   build_features.py     # funcional (MVP atual)
   build_dataset.py      # multi-TF dataset + targets
   train.py              # walk-forward + save model
@@ -56,25 +56,25 @@ pytest -q
 
 ## Uso (MVP atual)
 
-### 1) Download (OANDA)
+### 1) Download (Twelve Data - recomendado para comecar)
 
-Defina o token no ambiente:
+Defina a API key no ambiente:
 
 ```bash
-export OANDA_API_TOKEN="SEU_TOKEN"
+export TWELVEDATA_API_KEY="SUA_API_KEY"
 ```
 
 Teste pequeno (recomendado primeiro: 30 dias, 1 par, 2 TF):
 
 ```bash
 python -m scripts.download_data \
-  --provider oanda \
+  --provider twelvedata \
   --pairs EURUSD \
   --timeframes H1,D1 \
   --start 2025-01-01 \
   --end 2025-01-31 \
   --data-root data/raw \
-  --source oanda
+  --source twelvedata
 ```
 
 ### 2) Features CSS (multi-TF)
@@ -82,7 +82,7 @@ python -m scripts.download_data \
 ```bash
 python -m scripts.build_features \
   --data-root data/raw \
-  --source oanda \
+  --source twelvedata \
   --timeframes H1,H4,D1 \
   --pairs AUDCAD,AUDCHF,AUDJPY,AUDNZD,AUDUSD,CADJPY,CHFJPY,EURAUD,EURCAD,EURJPY,EURNZD,EURUSD,GBPAUD,GBPCAD,GBPCHF,GBPJPY,GBPNZD,GBPUSD,NZDCHF,NZDJPY,NZDUSD,USDCAD,USDCHF,USDJPY
 ```
@@ -97,7 +97,7 @@ python -m scripts.build_dataset \
   --decision-time 21:00 \
   --timezone America/Bahia \
   --data-root data/raw \
-  --source oanda \
+  --source twelvedata \
   --target-timeframe H1 \
   --horizons-hours 1,4,8,24 \
   --spread-bps 1.5 \
@@ -168,11 +168,12 @@ Fluxo recomendado:
 ```
 
 3. Rodar os scripts com paths no Drive para persistir artefatos apos restart do runtime.
-4. Definir segredo/token OANDA no Colab (`os.environ["OANDA_API_TOKEN"] = "..."`) ou usar Secrets.
+4. Definir segredo `TWELVEDATA_API_KEY` no Colab (`os.environ["TWELVEDATA_API_KEY"] = "..."`) ou usar Secrets.
 
 ## Escolhas tecnicas fixadas
 
-- Dados historicos/producao inicial: **OANDA v20 API**
+- Dados historicos MVP: **Twelve Data API**
+- Opcao de dados via corretora: **OANDA v20** (quando suportado pela jurisdicao da conta)
 - Agregacao do basket: **equal-dollar** (media simples das pernas com mesmo capital por perna)
 - Targets: **multi-horizonte** (1h, 4h, 8h, 24h; configuravel)
 - Modelo principal MVP: **LightGBM** (fallback automatico para HistGradientBoosting se indisponivel)

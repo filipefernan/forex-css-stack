@@ -18,7 +18,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--decision-anchor-timeframe", type=str, default="H1")
 
     parser.add_argument("--data-root", type=Path, default=Path("data/raw"))
-    parser.add_argument("--source", type=str, default="oanda")
+    parser.add_argument("--source", type=str, default="twelvedata")
     parser.add_argument("--pairs", type=str, default=",".join(DEFAULT_SYMBOLS_TO_WEIGH))
     parser.add_argument("--target-timeframe", type=str, default="H1")
     parser.add_argument("--horizons-hours", type=str, default="1,4,8,24")

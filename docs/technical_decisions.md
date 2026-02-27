@@ -6,7 +6,7 @@ Data da pesquisa: **2026-02-27**.
 
 - Execucao: **Google Colab**.
 - Persistencia: **Google Drive** como storage principal de dados/modelos/relatorios.
-- Fonte de dados do MVP: **OANDA v20 API**.
+- Fonte de dados do MVP: **Twelve Data API**.
 - Basket return: **equal-dollar** (mesmo capital por perna; media simples das pernas).
 - Modelagem: **LightGBM** como principal.
 - Holding/target: **multi-horizonte configuravel** (nao fixar apenas 24h).
@@ -106,7 +106,8 @@ Contras:
 
 ### Recomendacao (MVP)
 
-- **Fonte principal confirmada: OANDA v20**.
+- **Fonte principal confirmada: Twelve Data API** (evita restricao de abertura de conta por jurisdicao).
+- Opcao de dados via corretora: OANDA v20 quando elegivel pela jurisdicao da conta.
 - Opcao de expansao futura: Dukascopy/HistData para bulk historico adicional, se necessario.
 
 ### Teste de amostra obrigatorio (antes de baixar anos)
