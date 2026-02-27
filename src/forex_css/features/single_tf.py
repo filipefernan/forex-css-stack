@@ -20,7 +20,7 @@ def build_single_tf_features(
 
     css_sorted = css_frame.sort_index()
     long = (
-        css_sorted[CURRENCIES]
+        css_sorted[list(CURRENCIES)]
         .stack()
         .rename("css")
         .reset_index()
