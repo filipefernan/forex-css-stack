@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+import time
 from typing import Any
 
 import pandas as pd
@@ -47,6 +48,8 @@ class TwelveDataConfig:
     api_key: str
     timeout_seconds: int = 30
     max_points_per_call: int = 5000
+    max_retries_per_call: int = 6
+    rate_limit_wait_seconds: int = 65
     base_url: str = "https://api.twelvedata.com"
 
 
@@ -57,13 +60,25 @@ class TwelveDataClient:
 
     def _get(self, endpoint: str, params: dict[str, Any]) -> dict[str, Any]:
         url = f"{self.config.base_url}{endpoint}"
-        response = self.session.get(url, params=params, timeout=self.config.timeout_seconds)
-        response.raise_for_status()
-        payload = response.json()
-        if isinstance(payload, dict) and payload.get("status") == "error":
-            msg = payload.get("message", "Unknown Twelve Data API error")
-            raise RuntimeError(f"Twelve Data error: {msg}")
-        return payload
+        for attempt in range(1, self.config.max_retries_per_call + 1):
+            response = self.session.get(url, params=params, timeout=self.config.timeout_seconds)
+            response.raise_for_status()
+            payload = response.json()
+            if isinstance(payload, dict) and payload.get("status") == "error":
+                msg = payload.get("message", "Unknown Twelve Data API error")
+                msg_lower = msg.lower()
+                if "run out of api credits for the current minute" in msg_lower:
+                    if attempt == self.config.max_retries_per_call:
+                        raise RuntimeError(f"Twelve Data rate limit after {attempt} attempts: {msg}")
+                    wait_s = self.config.rate_limit_wait_seconds
+                    print(f"[twelvedata] rate limit hit; waiting {wait_s}s (attempt {attempt}/{self.config.max_retries_per_call})")
+                    time.sleep(wait_s)
+                    continue
+                if "no data is available on the specified dates" in msg_lower:
+                    raise RuntimeError(f"Twelve Data no data: {msg}")
+                raise RuntimeError(f"Twelve Data error: {msg}")
+            return payload
+        raise RuntimeError("Unexpected retry loop exit for Twelve Data request.")
 
     def fetch_candles(
         self,
@@ -143,6 +158,8 @@ class TwelveDataClient:
         output_path: str | Path,
     ) -> Path:
         candles = self.fetch_candles(symbol=symbol, timeframe=timeframe, start=start, end=end)
+        if candles.empty:
+            raise RuntimeError(f"No candles fetched for {symbol} {timeframe} in requested date range.")
         out = Path(output_path)
         out.parent.mkdir(parents=True, exist_ok=True)
         candles.to_parquet(out)

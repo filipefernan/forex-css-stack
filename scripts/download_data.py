@@ -4,6 +4,7 @@ import argparse
 import os
 from datetime import UTC, datetime
 from pathlib import Path
+import time
 
 from forex_css.data.providers.oanda import OandaClient, OandaConfig
 from forex_css.data.providers.twelvedata import TwelveDataClient, TwelveDataConfig
@@ -36,6 +37,18 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=None,
         help="Optional. If omitted, read TWELVEDATA_API_KEY.",
+    )
+    parser.add_argument(
+        "--continue-on-error",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Continue downloading other pair/timeframe on error.",
+    )
+    parser.add_argument(
+        "--sleep-between-requests",
+        type=float,
+        default=0.0,
+        help="Sleep seconds between symbol-timeframe requests (useful for free-tier rate limits).",
     )
     return parser.parse_args()
 
@@ -74,17 +87,38 @@ def main() -> None:
             )
         )
 
+    total = len(pairs) * len(tfs)
+    done = 0
+    errors: list[str] = []
+
     for pair in pairs:
         for tf in tfs:
+            done += 1
             output_path = args.data_root / args.source / pair / f"{tf}.parquet"
-            saved = client.download_symbol_timeframe_to_parquet(
-                symbol=pair,
-                timeframe=tf,
-                start=start,
-                end=end,
-                output_path=output_path,
-            )
-            print(f"Saved {pair} {tf}: {saved}")
+            try:
+                saved = client.download_symbol_timeframe_to_parquet(
+                    symbol=pair,
+                    timeframe=tf,
+                    start=start,
+                    end=end,
+                    output_path=output_path,
+                )
+                print(f"[{done}/{total}] Saved {pair} {tf}: {saved}")
+            except Exception as exc:
+                msg = f"[{done}/{total}] ERROR {pair} {tf}: {exc}"
+                if args.continue_on_error:
+                    print(msg)
+                    errors.append(msg)
+                else:
+                    raise
+            if args.sleep_between_requests > 0:
+                time.sleep(args.sleep_between_requests)
+
+    print(f"Download completed. Success={total - len(errors)} Failed={len(errors)}")
+    if errors:
+        print("Failed items:")
+        for line in errors:
+            print(line)
 
 
 if __name__ == "__main__":

@@ -74,8 +74,14 @@ python -m scripts.download_data \
   --start 2025-01-01 \
   --end 2025-01-31 \
   --data-root data/raw \
-  --source twelvedata
+  --source twelvedata \
+  --continue-on-error \
+  --sleep-between-requests 8
 ```
+
+Observacao para plano gratis do Twelve Data:
+- Limite por minuto pode interromper lotes grandes.
+- Use `--sleep-between-requests 8` (ou maior) e rode por blocos de pares.
 
 ### 2) Features CSS (multi-TF)
 
