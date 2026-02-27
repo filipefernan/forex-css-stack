@@ -8,8 +8,8 @@ __pycache__/
 venv/
 .venv/
 
-data/raw/
-data/features/
-data/datasets/
-models/
-reports/
+/data/raw/
+/data/features/
+/data/datasets/
+/models/
+/reports/
