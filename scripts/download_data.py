@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import csv
+import json
 import os
 from datetime import UTC, datetime
 from pathlib import Path
@@ -50,7 +52,37 @@ def parse_args() -> argparse.Namespace:
         default=0.0,
         help="Sleep seconds between symbol-timeframe requests (useful for free-tier rate limits).",
     )
+    parser.add_argument(
+        "--log-path",
+        type=Path,
+        default=None,
+        help="Optional CSV log path. Default: <data-root>/<source>/_logs/download_<timestamp>.csv",
+    )
+    parser.add_argument(
+        "--summary-path",
+        type=Path,
+        default=None,
+        help="Optional JSON summary path. Default: same folder as --log-path with _summary.json suffix.",
+    )
     return parser.parse_args()
+
+
+def _write_csv_log(path: Path, rows: list[dict[str, str]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fieldnames = [
+        "event_time_utc",
+        "provider",
+        "pair",
+        "timeframe",
+        "status",
+        "duration_sec",
+        "output_path",
+        "error",
+    ]
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
 
 
 def main() -> None:
@@ -64,6 +96,13 @@ def main() -> None:
     tfs = [t.strip().upper() for t in args.timeframes.split(",") if t.strip()]
     if not pairs or not tfs:
         raise ValueError("Provide non-empty --pairs and --timeframes")
+
+    started_at = datetime.now(UTC)
+    default_log_path = args.data_root / args.source / "_logs" / f"download_{started_at:%Y%m%d_%H%M%S}.csv"
+    log_path = args.log_path or default_log_path
+    default_summary_path = log_path.with_name(log_path.stem + "_summary.json")
+    summary_path = args.summary_path or default_summary_path
+    log_rows: list[dict[str, str]] = []
 
     if args.provider == "oanda":
         token = args.oanda_token or os.getenv("OANDA_API_TOKEN")
@@ -95,6 +134,7 @@ def main() -> None:
         for tf in tfs:
             done += 1
             output_path = args.data_root / args.source / pair / f"{tf}.parquet"
+            t0 = time.perf_counter()
             try:
                 saved = client.download_symbol_timeframe_to_parquet(
                     symbol=pair,
@@ -103,18 +143,65 @@ def main() -> None:
                     end=end,
                     output_path=output_path,
                 )
+                elapsed = time.perf_counter() - t0
                 print(f"[{done}/{total}] Saved {pair} {tf}: {saved}")
+                log_rows.append(
+                    {
+                        "event_time_utc": datetime.now(UTC).isoformat(),
+                        "provider": args.provider,
+                        "pair": pair,
+                        "timeframe": tf,
+                        "status": "success",
+                        "duration_sec": f"{elapsed:.3f}",
+                        "output_path": str(saved),
+                        "error": "",
+                    }
+                )
             except Exception as exc:
                 msg = f"[{done}/{total}] ERROR {pair} {tf}: {exc}"
+                elapsed = time.perf_counter() - t0
+                log_rows.append(
+                    {
+                        "event_time_utc": datetime.now(UTC).isoformat(),
+                        "provider": args.provider,
+                        "pair": pair,
+                        "timeframe": tf,
+                        "status": "error",
+                        "duration_sec": f"{elapsed:.3f}",
+                        "output_path": str(output_path),
+                        "error": str(exc),
+                    }
+                )
                 if args.continue_on_error:
                     print(msg)
                     errors.append(msg)
                 else:
+                    _write_csv_log(log_path, log_rows)
                     raise
             if args.sleep_between_requests > 0:
                 time.sleep(args.sleep_between_requests)
 
-    print(f"Download completed. Success={total - len(errors)} Failed={len(errors)}")
+    success = total - len(errors)
+    _write_csv_log(log_path, log_rows)
+    summary = {
+        "started_at_utc": started_at.isoformat(),
+        "finished_at_utc": datetime.now(UTC).isoformat(),
+        "provider": args.provider,
+        "source": args.source,
+        "start": start.isoformat(),
+        "end": end.isoformat(),
+        "total_requests": total,
+        "success_requests": success,
+        "failed_requests": len(errors),
+        "log_path": str(log_path),
+    }
+    summary_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(summary_path, "w", encoding="utf-8") as f:
+        json.dump(summary, f, indent=2)
+
+    print(f"Download completed. Success={success} Failed={len(errors)}")
+    print(f"CSV log: {log_path}")
+    print(f"Summary: {summary_path}")
     if errors:
         print("Failed items:")
         for line in errors:

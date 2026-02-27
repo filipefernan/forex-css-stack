@@ -76,12 +76,15 @@ python -m scripts.download_data \
   --data-root data/raw \
   --source twelvedata \
   --continue-on-error \
-  --sleep-between-requests 8
+  --sleep-between-requests 8 \
+  --log-path data/raw/twelvedata/_logs/download_smoke.csv \
+  --summary-path data/raw/twelvedata/_logs/download_smoke_summary.json
 ```
 
 Observacao para plano gratis do Twelve Data:
 - Limite por minuto pode interromper lotes grandes.
 - Use `--sleep-between-requests 8` (ou maior) e rode por blocos de pares.
+- O downloader gera log CSV por request e JSON de resumo para auditoria.
 
 ### 2) Features CSS (multi-TF)
 
