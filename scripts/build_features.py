@@ -13,7 +13,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build Currency Slope Strength features for one timeframe.")
     parser.add_argument("--data-root", type=Path, default=Path("data/raw"), help="Base directory with raw candles.")
     parser.add_argument("--source", type=str, default="local", help="Source folder under data-root.")
-    parser.add_argument("--timeframe", type=str, default="D1", help="Single timeframe (M15/H1/H4/D1/W1).")
+    parser.add_argument("--timeframe", type=str, default="D1", help="Single timeframe (M15/M30/H1/H4/D1/W1).")
     parser.add_argument(
         "--timeframes",
         type=str,

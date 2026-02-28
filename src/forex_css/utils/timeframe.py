@@ -17,6 +17,7 @@ class TimeframeSpec:
 
 TIMEFRAME_SPECS: dict[str, TimeframeSpec] = {
     "M15": TimeframeSpec(code="M15", pandas_freq="15min", minutes=15, oanda_granularity="M15"),
+    "M30": TimeframeSpec(code="M30", pandas_freq="30min", minutes=30, oanda_granularity="M30"),
     "H1": TimeframeSpec(code="H1", pandas_freq="1h", minutes=60, oanda_granularity="H1"),
     "H4": TimeframeSpec(code="H4", pandas_freq="4h", minutes=240, oanda_granularity="H4"),
     "D1": TimeframeSpec(code="D1", pandas_freq="1D", minutes=24 * 60, oanda_granularity="D"),
